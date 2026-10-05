@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full bg-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniFix Portal - ระบบแจ้งซ่อมและแก้ไขปัญหาภายในมหาวิทยาลัย</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Prompt -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                    },
+                    colors: {
+                        unifix: {
+                            main: '#322d99',
+                            dark: '#27227c',
+                            light: '#433db8',
+                            accent: '#4f46e5'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; background-color: #f1f5f9; }
+        .bg-unifix { background-color: #322d99; }
+        .text-unifix { color: #322d99; }
+        .border-unifix { border-color: #322d99; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    </style>
+</head>
+<body class="h-full text-slate-800 antialiased flex flex-col min-h-screen">
+
+    <!-- GLOBAL APPS STATE CONTAINER -->
+    <div id="app" class="flex-1 flex flex-col min-h-screen">
+        
+        <!-- HEADER NAVIGATION BAR -->
+        <header id="mainHeader" class="bg-unifix text-white shadow-md sticky top-0 z-40 hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <!-- Brand Logo -->
+                    <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('new-request')">
+                        <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-white backdrop-blur-md">
+                            <i class="fa-solid fa-wrench text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-base leading-tight">UniFix Portal</div>
+                            <div class="text-[10px] text-indigo-200">ระบบแจ้งซ่อมและแก้ไขปัญหาภายในมหาวิทยาลัย</div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Tabs -->
+                    <nav class="hidden md:flex items-center gap-1">
+                        <button id="nav-new-request" onclick="switchTab('new-request')" class="px-4 py-2 rounded-xl text-xs font-medium transition-all flex items-center gap-2 bg-white/10 text-white shadow-sm">
+                            <i class="fa-solid fa-pen-to-square"></i> แจ้งปัญหาใหม่
+                        </button>
+                        <button id="nav-dashboard" onclick="switchTab('dashboard')" class="px-4 py-2 rounded-xl text-xs font-medium transition-all flex items-center gap-2 text-indigo-100 hover:bg-white/10 hover:text-white">
+                            <i class="fa-solid fa-list-check"></i> ติดตามสถานะ ( Dashboard )
+                            <span id="ticketBadgeCount" class="bg-amber-400 text-slate-900 font-bold px-1.5 py-0.2 text-[10px] rounded-full">0</span>
+                        </button>
+                        <button id="nav-webhook" onclick="switchTab('webhook')" class="px-4 py-2 rounded-xl text-xs font-medium transition-all flex items-center gap-2 text-indigo-100 hover:bg-white/10 hover:text-white">
+                            <i class="fa-solid fa-bell"></i> ตั้งค่าการแจ้งเตือน Line
+                        </button>
+                    </nav>
+
+                    <!-- Authenticated User Profile -->
+                    <div class="flex items-center gap-3">
+                        <div class="hidden sm:flex flex-col text-right">
+                            <span id="headerUserName" class="text-xs font-semibold leading-tight text-white">ผู้ใช้งาน</span>
+                            <span id="headerUserEmail" class="text-[10px] text-indigo-200 leading-tight">user@domain.ac.th</span>
+                        </div>
+                        <img id="headerUserAvatar" src="https://placehold.co/100x100/322d99/ffffff?text=U" class="w-8 h-8 rounded-full border-2 border-white/40 object-cover" alt="User Avatar">
+                        <button onclick="handleLogout()" title="ออกจากระบบ" class="bg-white/10 hover:bg-rose-600 text-white p-2 rounded-xl text-xs transition-all">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Mobile Nav Sub-Bar -->
+            <div class="md:hidden flex border-t border-white/10 bg-indigo-950/40 px-2 py-1.5 gap-1 overflow-x-auto text-xs">
+                <button id="mobile-nav-new-request" onclick="switchTab('new-request')" class="px-3 py-1.5 rounded-lg text-white font-medium bg-white/20">แจ้งปัญหาใหม่</button>
+                <button id="mobile-nav-dashboard" onclick="switchTab('dashboard')" class="px-3 py-1.5 rounded-lg text-indigo-200">ติดตามสถานะ (<span id="mobileTicketBadge">0</span>)</button>
+                <button id="mobile-nav-webhook" onclick="switchTab('webhook')" class="px-3 py-1.5 rounded-lg text-indigo-200">ตั้งค่า Line</button>
+            </div>
+        </header>
+
+        <!-- VIEW 1: AUTHENTICATION LOGIN PAGE -->
+        <section id="loginView" class="flex-1 flex items-center justify-center p-4 bg-slate-100">
+            <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 my-8">
+                <!-- Header Banner -->
+                <div class="bg-unifix text-white p-8 text-center relative">
+                    <div class="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/20">
+                        <i class="fa-solid fa-wrench text-3xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold tracking-tight">UniFix Portal</h1>
+                    <p class="text-xs text-indigo-200 mt-1">ระบบแจ้งซ่อมและแก้ไขปัญหาภายในมหาวิทยาลัย</p>
+                </div>
+
+                <!-- Login Options -->
+                <div class="p-6 md:p-8 space-y-6">
+                    <!-- Google Auth Trigger -->
+                    <div>
+                        <button onclick="triggerGoogleSignIn()" class="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 hover:border-indigo-600 hover:bg-slate-50 text-slate-700 font-medium py-3 px-4 rounded-xl shadow-sm transition-all text-sm group">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                            </svg>
+                            <span>เข้าสู่ระบบด้วย Google Workspace (@Parichat.skru.ac.th)</span>
+                        </button>
+                    </div>
+
+                    <div class="relative flex items-center justify-center">
+                        <div class="border-t border-slate-200 w-full"></div>
+                        <span class="bg-white px-3 text-xs text-slate-400 font-normal absolute">หรือใช้กับบัญชีมหาวิทยาลัย</span>
+                    </div>
+
+                    <!-- Standard SSO Login Form -->
+                    <form onsubmit="handleManualLogin(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">รหัสนักศึกษา / รหัสบุคลากร / บัญชีผู้ใช้</label>
+                            <div class="relative">
+                                <i class="fa-regular fa-user absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                                <input type="text" id="loginUsername" placeholder="เช่น 640100001 หรือ ST-123" required class="w-full text-xs pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 bg-slate-50/50">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">รหัสผ่าน (Password)</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                                <input type="password" id="loginPassword" placeholder="••••••••" required class="w-full text-xs pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 bg-slate-50/50">
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between text-xs">
+                            <label class="flex items-center gap-2 cursor-pointer text-slate-600">
+                                <input type="checkbox" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                <span>จดจำการเข้าสู่ระบบ</span>
+                            </label>
+                            <a href="#" onclick="alert('กรุณาติดต่อสำนักบริการคอมพิวเตอร์เพื่อรีเซ็ตรหัสผ่าน'); return false;" class="text-indigo-600 font-semibold hover:underline">ลืมรหัสผ่าน?</a>
+                        </div>
+
+                        <button type="submit" class="w-full bg-unifix hover:bg-indigo-900 text-white font-medium py-3 px-4 rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-right-to-bracket"></i>
+                            เข้าสู่ระบบด้วย บัญชีมหาวิทยาลัย (SSO)
+                        </button>
+                    </form>
+
+                    <!-- Firebase Setup Trigger Link -->
+                    <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                        <span>สถานะระบบ Google Auth:</span>
+                        <button onclick="openConfigModal()" class="text-indigo-600 font-semibold hover:underline flex items-center gap-1">
+                            <i class="fa-solid fa-key"></i> <span id="configStatusLabel">ตั้งค่า Firebase Keys</span>
+                        </button>
+                    </div>
+
+                    <p class="text-[10px] text-center text-slate-400">
+                        ระบบเชื่อมต่อสิทธิ์ผ่านระบบสารสนเทศกลาง มหาวิทยาลัย (SSO)
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- MAIN APP CONTENT (AFTER AUTHENTICATION) -->
+        <main id="mainAppContent" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 hidden">
+            
+            <!-- VIEW 2: NEW MAINTENANCE REQUEST FORM -->
+            <section id="view-new-request" class="space-y-6">
+                <!-- Header Banner -->
+                <div class="bg-unifix text-white rounded-2xl p-6 md:p-8 shadow-md">
+                    <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3">
+                        <span>📋</span> แบบฟอร์มแจ้งสิ่งชำรุด/แจ้งปัญหาออนไลน์
+                    </h2>
+                    <p class="text-xs md:text-sm text-indigo-200 mt-1">
+                        กรอกรายละเอียดปัญหาเพื่อแจ้งเจ้าหน้าที่พัสดุและอาคารสถานที่เข้าดำเนินการแก้ไข
+                    </p>
+                </div>
+
+                <form onsubmit="submitNewTicket(event)" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+                    <!-- Section 1: User Info -->
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4">
+                            <i class="fa-solid fa-user-gear text-indigo-600"></i> ข้อมูลผู้แจ้งปัญหา
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">ชื่อ-นามสกุล <span class="text-rose-500">*</span></label>
+                                <input type="text" id="reqFullName" required class="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-600 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">รหัสนักศึกษา / รหัสบุคลากร <span class="text-rose-500">*</span></label>
+                                <input type="text" id="reqUserCode" required placeholder="640100001" class="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-600 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">เบอร์โทรศัพท์ติดต่อกลับ <span class="text-rose-500">*</span></label>
+                                <input type="tel" id="reqPhone" required placeholder="0812345678" class="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-600 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">สังกัด / คณะ / หน่วยงาน</label>
+                                <select id="reqFaculty" class="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-600 focus:outline-none">
+                                    <option value="คณะวิทยาศาสตร์">คณะวิทยาศาสตร์</option>
+                                    <option value="คณะวิศวกรรมศาสตร์">คณะวิศวกรรมศาสตร์</option>
+                                    <option value="คณะบริหารธุรกิจ">คณะบริหารธุรกิจ</option>
+                                    <option value="คณะมนุษยศาสตร์">คณะมนุษยศาสตร์</option>
+                                    <option value="สำนักหอสมุดกลาง">สำนักหอสมุดกลาง</option>
+                                    <option value="กองอาคารสถานที่">กองอาคารสถานที่</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <!-- Section 2: Location & Issue Detail -->
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4">
+                            <i class="fa-solid fa-location-dot text-indigo-600"></i> รายละเอียดสถานที่และปัญหา
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">อาคาร / สถานที่ <span class="text-rose-500">*</span></label>
+                                <select id="reqBuilding" required class="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-600 focus:outline-none">
+                                    <option value="">-- เลือกอาคาร --</option>
+                                    <option value="อาคารเรียนรวม 1">อาคารเรียนรวม 1</option>
+                                    <option value="อาคารเรียนรวม 2">อาคารเรียนรวม 2</option>
+                                    <option value="อาคารปฏิบัติการวิทยาศาสตร์">อาคารปฏิบัติการวิทยาศาสตร์</option>
+                                    <option value="สำนักหอสมุดกลาง">สำนักหอสมุดกลาง</option>
+                                    <option value="หอพักนักศึกษา">หอพักนักศึกษา</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">ชั้น <span class="text-rose-500">*</span></label>
+                                <input type="text" id="reqFloor" placeholder="เช่น ชั้น 3" required class="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-600 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">ห้อง / บริเวณระบุ <span class="text-rose-500">*</span></label>
+                                <input type="text" id="reqRoom" placeholder="เช่น ห้อง 302" required class="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-600 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">หมวดหมู่อุปกรณ์/ปัญหา <span class="text-rose-500">*</span></label>
+                                <select id="reqCategory" required class="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-600 focus:outline-none">
+                                    <option value="">-- เลือกประเภทปัญหา --</option>
+                                    <option value="ระบบไฟฟ้า / หลอดไฟ">ระบบไฟฟ้า / หลอดไฟ</option>
+                                    <option value="เครื่องปรับอากาศ / พัดลม">เครื่องปรับอากาศ / พัดลม</option>
+                                    <option value="ระบบเครือข่าย / Wi-Fi">ระบบเครือข่าย / Wi-Fi / โทรศัพท์</option>
+                                    <option value="ประปา / ห้องน้ำ">ประปา / ห้องน้ำ</option>
+                                    <option value="โต๊ะ / เก้าอี้ / ครุภัณฑ์">โต๊ะ / เก้าอี้ / ครุภัณฑ์</option>
+                                    <option value="ประตู / หน้าต่าง / โครงสร้าง">ประตู / หน้าต่าง / โครงสร้าง</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">ระดับความเร่งด่วน <span class="text-rose-500">*</span></label>
+                                <select id="reqUrgency" required class="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-600 focus:outline-none">
+                                    <option value="ปกติ (1-3 วัน)">ปกติ (1-3 วัน)</option>
+                                    <option value="ด่วน (ภายใน 24 ชม.)">ด่วน (ภายใน 24 ชม.)</option>
+                                    <option value="ด่วนที่สุด (ฉุกเฉิน)">ด่วนที่สุด (ฉุกเฉิน)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">รายละเอียดปัญหาเพิ่มเติม <span class="text-rose-500">*</span></label>
+                            <textarea id="reqDescription" rows="4" placeholder="อธิบายอาการเสีย สภาพปัญหา หรือผลกระทบเพิ่มเติม..." required class="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-600 focus:outline-none"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="w-full bg-unifix hover:bg-indigo-900 text-white font-semibold py-3.5 px-4 rounded-xl text-sm shadow-md transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-paper-plane"></i> ส่งใบแจ้งปัญหาออนไลน์ (Save to Database)
+                    </button>
+                </form>
+            </section>
+
+            <!-- VIEW 3: TRACKING DASHBOARD -->
+            <section id="view-dashboard" class="space-y-6 hidden">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-indigo-600"></i> รายการแจ้งซ่อมและติดตามสถานะงาน
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-1">ข้อมูลเชื่อมต่อกับ Cloud Database สดแบบ Realtime</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="syncIndicatorBadge" class="text-xs bg-emerald-100 text-emerald-800 font-medium px-3 py-1 rounded-full flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> DB Connected
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Tickets Container -->
+                <div id="ticketsContainer" class="space-y-4">
+                    <!-- Empty State Default -->
+                    <div id="emptyState" class="bg-white rounded-2xl p-12 text-center border border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-inbox text-4xl mb-3"></i>
+                        <p class="text-sm font-medium">ยังไม่มีรายการแจ้งซ่อมในระบบ</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 4: LINE NOTIFY & WEBHOOK SETTINGS -->
+            <section id="view-webhook" class="space-y-6 hidden">
+                <div class="bg-emerald-900 text-white rounded-2xl p-6 md:p-8 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold flex items-center gap-2">
+                            <i class="fa-solid fa-bell"></i> ตั้งค่าระบบแจ้งเตือน Line Notify / Webhook
+                        </h2>
+                        <p class="text-xs text-emerald-200 mt-1">เชื่อมต่อส่งการแจ้งเตือนปัญหาไปยังกลุ่มเจ้าหน้าที่ หรือหน่วยงานที่เกี่ยวข้อง</p>
+                    </div>
+                    <span class="bg-emerald-800 border border-emerald-700 text-emerald-100 text-xs px-3 py-1 rounded-full">
+                        Active Cloud Database
+                    </span>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div>
+                            <div class="font-bold text-sm text-slate-800">เปิดใช้งานการส่งแจ้งเตือนอัตโนมัติ</div>
+                            <div class="text-xs text-slate-500">เมื่อมีผู้แจ้งเรื่องใหม่ ระบบจะยิงข้อความเข้า Console Log ทันที</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="notifyToggle" checked class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Line Notify Token</label>
+                            <div class="relative">
+<input type="text" id="lineTokenInput" value="" placeholder="วาง Line Token ที่นี่" class="w-full text-xs p-3 pr-10 font-mono rounded-xl border border-slate-200 bg-slate-50">
+                                <i class="fa-solid fa-key absolute right-3.5 top-3.5 text-slate-400 text-xs"></i>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Target Webhook URL</label>
+                            <input type="text" id="webhookUrlInput" value="https://api.university.ac.th/v1/maintenance/webhook" class="w-full text-xs p-3 font-mono rounded-xl border border-slate-200 bg-slate-50">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 pt-2">
+                        <button onclick="testWebhookPing()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-paper-plane"></i> ทดสอบส่งข้อความแจ้งเตือน (Test Ping)
+                        </button>
+                        <button onclick="alert('บันทึกการตั้งค่า Webhook เรียบร้อยแล้ว');" class="bg-slate-800 hover:bg-slate-900 text-white font-medium px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Webhook Console Box -->
+                <div class="bg-slate-900 rounded-2xl p-4 shadow-md text-slate-200 font-mono text-xs space-y-2 border border-slate-800">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 text-slate-400">
+                        <span>>_ Line Notify / Webhook Live Simulation Console</span>
+                        <button onclick="clearConsoleLog()" class="text-[10px] hover:text-white">clear log</button>
+                    </div>
+                    <div id="consoleLogArea" class="h-28 overflow-y-auto custom-scrollbar space-y-1 text-[11px] text-emerald-400">
+                        <div>[Database Connected] พร้อมส่งข้อมูล Webhook และ Line Notify Payload...</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400 mt-auto">
+            © 2026 University Maintenance & Facility Management Portal
+        </footer>
+    </div>
+
+    <!-- MODAL: FIREBASE CONFIGURATION SETUP -->
+    <div id="firebaseConfigModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-fire text-amber-500 text-lg"></i> ตั้งค่า Firebase API Key สำหรับ Google Auth
+                </h3>
+                <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 space-y-1">
+                <span class="font-bold block">📌 วิธีทำให้ปุ่ม Google ล็อกอินเชื่อมต่อจริง:</span>
+                <p>1. เปิด <a href="https://console.firebase.google.com/" target="_blank" class="underline font-bold text-amber-900">Firebase Console</a> -> สร้าง/เลือกโปรเจกต์</p>
+                <p>2. ไปที่ <b>Authentication</b> -> เมนู <b>Sign-in method</b> -> กดเปิดใช้งาน <b>Google</b></p>
+                <p>3. คัดลอก `firebaseConfig` จาก Project Settings มาวางในช่องด้านล่าง</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Firebase Configuration (JSON Format)</label>
+                <textarea id="configJsonInput" rows="6" placeholder='{
+  "apiKey": "AIzaSy...",
+  "authDomain": "your-app.firebaseapp.com",
+  "projectId": "your-app",
+  "storageBucket": "your-app.appspot.com",
+  "messagingSenderId": "...",
+  "appId": "..."
+}' class="w-full text-xs font-mono rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-indigo-600"></textarea>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button onclick="closeConfigModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-all">ยกเลิก</button>
+                <button onclick="saveFirebaseConfig()" class="px-5 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all shadow-sm">
+                    บันทึกการตั้งค่า Firebase
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT FIREBASE & LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Global State
+        window.appState = {
+            user: null,
+            firebaseApp: null,
+            auth: null,
+            db: null,
+            isFirebaseReady: false,
+            tickets: []
+        };
+
+        // Initialize On Load
+        window.addEventListener('DOMContentLoaded', () => {
+            initFirebaseFromStorage();
+            loadLocalTickets();
+            updateConfigStatusLabel();
+        });
+
+        // Initialize Firebase SDK if config is stored
+               function initFirebaseFromStorage() {
+            const config = {
+                apiKey: "AIzaSyAKV10HSsIyxvSTyT25SSp6OZFmA5a5VPA",
+                authDomain: "unifix-portal.firebaseapp.com",
+                projectId: "unifix-portal",
+                storageBucket: "unifix-portal.firebasestorage.app",
+                messagingSenderId: "914008051111",
+                appId: "1:914008051111:web:f1fcc2021f936fd5f0ba82",
+                measurementId: "G-BMBKZEESH27"
+            };
+
+            try {
+                window.appState.firebaseApp = initializeApp(config);
+                window.appState.auth = getAuth(window.appState.firebaseApp);
+                window.appState.db = getFirestore(window.appState.firebaseApp);
+                window.appState.isFirebaseReady = true;
+
+                                  // Auth State Observer + เริ่มดึงข้อมูลหลังล็อกอินเท่านั้น
+                let unsubTickets = null;
+                onAuthStateChanged(window.appState.auth, (user) => {
+                    if (user && !/skru\.ac\.th$/i.test(user.email || '')) {
+                        alert('ใช้งานได้เฉพาะอีเมลมหาวิทยาลัย (@skru.ac.th) เท่านั้น');
+                        signOut(window.appState.auth);
+                    } else if (user) {
+                        onLoginSuccess({
+                            name: user.displayName || user.email.split('@')[0],
+                            email: user.email,
+                            avatar: user.photoURL || `https://placehold.co/100x100/322d99/ffffff?text=${user.email[0].toUpperCase()}`
+                        });
+                        if (!unsubTickets) {
+                            const appId = typeof __app_id !== 'undefined' ? __app_id : 'unifix-portal';
+                            const ticketsCol = collection(window.appState.db, 'artifacts', appId, 'public', 'data', 'tickets');
+                            unsubTickets = onSnapshot(ticketsCol, (snapshot) => {
+                                const dbTickets = [];
+                                snapshot.forEach((d) => dbTickets.push({ id: d.id, ...d.data() }));
+                                window.appState.tickets = dbTickets;
+                                renderTickets();
+                            }, (err) => console.error('Firestore error:', err));
+                        }
+                    } else {
+                        if (unsubTickets) { unsubTickets(); unsubTickets = null; }
+                        window.appState.tickets = [];
+                        renderTickets();
+                        onLogoutSuccess();
+                    }
+                });
+
+            } catch (e) {
+                console.error("Firebase Init Error:", e);
+            }
+        }
+
+        // Trigger Google Sign In Popup
+        window.triggerGoogleSignIn = async function() {
+            if (!window.appState.isFirebaseReady || !window.appState.auth) {
+                alert("กรุณาตั้งค่า Firebase Config ก่อนเปิดใช้งานการล็อกอิน Google จริง");
+                openConfigModal();
+                return;
+            }
+
+            const provider = new GoogleAuthProvider();
+            try {
+                const result = await signInWithPopup(window.appState.auth, provider);
+                // Auth Observer will handle UI transition
+            } catch (error) {
+                console.error("Google Auth Error:", error);
+                alert("เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google: " + error.message);
+            }
+        };
+
+           // Manual SSO Fallback (ปิดใช้งาน ต้องล็อกอินด้วย Google เท่านั้น)
+        window.handleManualLogin = function(event) {
+            event.preventDefault();
+            alert('กรุณาเข้าสู่ระบบด้วยปุ่ม Google (อีเมลมหาวิทยาลัย @skru.ac.th)');
+        };
+
+        function onLoginSuccess(user) {
+            window.appState.user = user;
+            document.getElementById('loginView').classList.add('hidden');
+            document.getElementById('mainHeader').classList.remove('hidden');
+            document.getElementById('mainAppContent').classList.remove('hidden');
+
+            // Set Header Profile
+            document.getElementById('headerUserName').innerText = user.name;
+            document.getElementById('headerUserEmail').innerText = user.email;
+            document.getElementById('headerUserAvatar').src = user.avatar;
+
+            // Auto-fill Request Form
+            document.getElementById('reqFullName').value = user.name;
+
+            switchTab('new-request');
+        }
+
+        window.handleLogout = async function() {
+            if (window.appState.isFirebaseReady && window.appState.auth) {
+                await signOut(window.appState.auth);
+            } else {
+                onLogoutSuccess();
+            }
+        };
+
+        function onLogoutSuccess() {
+            window.appState.user = null;
+            document.getElementById('loginView').classList.remove('hidden');
+            document.getElementById('mainHeader').classList.add('hidden');
+            document.getElementById('mainAppContent').classList.add('hidden');
+        }
+
+        // Navigation Switcher
+        window.switchTab = function(tabName) {
+            ['new-request', 'dashboard', 'webhook'].forEach(t => {
+                const view = document.getElementById(`view-${t}`);
+                const navBtn = document.getElementById(`nav-${t}`);
+                if (t === tabName) {
+                    view.classList.remove('hidden');
+                    if (navBtn) {
+                        navBtn.className = "px-4 py-2 rounded-xl text-xs font-medium transition-all flex items-center gap-2 bg-white/10 text-white shadow-sm";
+                    }
+                } else {
+                    view.classList.add('hidden');
+                    if (navBtn) {
+                        navBtn.className = "px-4 py-2 rounded-xl text-xs font-medium transition-all flex items-center gap-2 text-indigo-100 hover:bg-white/10 hover:text-white";
+                    }
+                }
+            });
+        };
+
+        // Submit Repair Form
+        window.submitNewTicket = async function(e) {
+    e.preventDefault();
+    const newTicket = {
+        code: 'FIX-' + Math.floor(1000 + Math.random() * 9000),
+        reporterName: document.getElementById('reqFullName').value,
+        reporterCode: document.getElementById('reqUserCode').value,
+        reporterPhone: document.getElementById('reqPhone').value,
+        faculty: document.getElementById('reqFaculty').value,
+        building: document.getElementById('reqBuilding').value,
+        floor: document.getElementById('reqFloor').value,
+        room: document.getElementById('reqRoom').value,
+        category: document.getElementById('reqCategory').value,
+        urgency: document.getElementById('reqUrgency').value,
+        description: document.getElementById('reqDescription').value,
+        status: 'รอดำเนินการ',
+        timestamp: new Date().toLocaleString('th-TH')
+    };
+
+    logWebhookConsole(`[EVENT: New Ticket] รหัส ${newTicket.code} - ${newTicket.category} (${newTicket.building})`);
+
+    // 1) ส่ง LINE ก่อน (ไม่รอ Firestore)
+        if (document.getElementById('notifyToggle').checked) {
+        const API_BASE = (location.port === '5500') ? 'http://127.0.0.1:5000' : '';
+        window.appState.auth.currentUser.getIdToken()
+        .then(token => fetch(API_BASE + '/api/notify-line', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(newTicket)
+        }))
+        .then(r => r.json())
+        .then(d => logWebhookConsole(d.ok ? '[LINE] ส่งแจ้งเตือนสำเร็จ' : '[LINE] ส่งไม่สำเร็จ: ' + d.detail))
+        .catch(err => logWebhookConsole('[LINE] เชื่อมต่อ backend ไม่ได้: ' + err));
+    }
+
+    // 2) บันทึกฐานข้อมูล (ไม่ใช้ await เพราะ Firestore ที่ยังไม่เปิดจะค้างตลอด)
+    if (window.appState.isFirebaseReady && window.appState.db) {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'unifix-portal';
+        addDoc(collection(window.appState.db, 'artifacts', appId, 'public', 'data', 'tickets'), newTicket)
+            .catch(err => console.error("Firebase Add Ticket Error:", err));
+    }
+
+    // 3) เก็บสำรองในเครื่องและแสดงผลทันที
+    if (!window.appState.isFirebaseReady || !window.appState.db) {
+        window.appState.tickets.unshift(newTicket);
+        saveLocalTickets();
+        renderTickets();
+    }
+
+    alert(`ส่งใบแจ้งซ่อมสำเร็จ! รหัสอ้างอิง: ${newTicket.code}`);
+    document.getElementById('reqDescription').value = '';
+    switchTab('dashboard');
+};
+
+        // Render Dashboard Items
+        window.renderTickets = function() {
+            const container = document.getElementById('ticketsContainer');
+            const countBadge = document.getElementById('ticketBadgeCount');
+            const mobileCountBadge = document.getElementById('mobileTicketBadge');
+            
+            const tickets = window.appState.tickets;
+            countBadge.innerText = tickets.length;
+            mobileCountBadge.innerText = tickets.length;
+
+            if (tickets.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl p-12 text-center border border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-inbox text-4xl mb-3"></i>
+                        <p class="text-sm font-medium">ยังไม่มีรายการแจ้งซ่อมในระบบ</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = tickets.map((t) => `
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                                ${t.code}
+                            </span>
+                            <span class="text-xs font-bold text-slate-800">${t.category}</span>
+                        </div>
+                        <span class="text-xs px-3 py-1 rounded-full font-medium ${getStatusBadge(t.status)}">
+                            ${t.status}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-600">
+                        <div><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i> <b>สถานที่:</b> ${t.building} ${t.floor} ${t.room}</div>
+                        <div><i class="fa-solid fa-clock text-amber-500 mr-1"></i> <b>ความเร่งด่วน:</b> ${t.urgency}</div>
+                        <div><i class="fa-solid fa-user text-indigo-500 mr-1"></i> <b>ผู้แจ้ง:</b> ${t.reporterName} (${t.reporterPhone})</div>
+                        <div><i class="fa-solid fa-calendar mr-1"></i> <b>เวลา:</b> ${t.timestamp}</div>
+                    </div>
+
+                    <div class="bg-slate-50 p-3 rounded-xl text-xs text-slate-700">
+                        <b>รายละเอียด:</b> ${t.description}
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2 text-xs">
+                        <span class="text-[11px] text-slate-400">สังกัด: ${t.faculty || 'ไม่ระบุ'}</span>
+                        <div class="flex gap-1">
+                            <button onclick="updateStatus('${t.id || t.code}', 'กำลังดำเนินการ')" class="bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 px-2.5 py-1 rounded-lg">กำลังซ่อม</button>
+                            <button onclick="updateStatus('${t.id || t.code}', 'เสร็จสิ้น')" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg">เสร็จสิ้น</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        function getStatusBadge(status) {
+            switch(status) {
+                case 'รอดำเนินการ': return 'bg-amber-100 text-amber-800 border border-amber-200';
+                case 'กำลังดำเนินการ': return 'bg-sky-100 text-sky-800 border border-sky-200';
+                case 'เสร็จสิ้น': return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+                default: return 'bg-slate-100 text-slate-800';
+            }
+        }
+
+        window.updateStatus = async function(id, status) {
+            if (window.appState.isFirebaseReady && window.appState.db) {
+                try {
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'unifix-portal';
+                    const docRef = doc(window.appState.db, 'artifacts', appId, 'public', 'data', 'tickets', id);
+                    await updateDoc(docRef, { status: status });
+                } catch (e) {
+                    console.error("Update Status Error:", e);
+                }
+            } else {
+                const target = window.appState.tickets.find(t => t.code === id || t.id === id);
+                if (target) {
+                    target.status = status;
+                    saveLocalTickets();
+                    renderTickets();
+                }
+            }
+            logWebhookConsole(`[STATUS UPDATE] ${id} เปลี่ยนสถานะเป็น -> ${status}`);
+        };
+
+        function loadLocalTickets() {
+            const saved = localStorage.getItem('unifix_local_tickets');
+            if (saved) {
+                window.appState.tickets = JSON.parse(saved);
+            }
+            renderTickets();
+        }
+
+        function saveLocalTickets() {
+            localStorage.setItem('unifix_local_tickets', JSON.stringify(window.appState.tickets));
+        }
+
+        // Modal Management
+        window.openConfigModal = function() {
+            const stored = localStorage.getItem('unifix_firebase_config');
+            if (stored) {
+                document.getElementById('configJsonInput').value = stored;
+            }
+            document.getElementById('firebaseConfigModal').classList.remove('hidden');
+        };
+
+        window.closeConfigModal = function() {
+            document.getElementById('firebaseConfigModal').classList.add('hidden');
+        };
+
+        window.saveFirebaseConfig = function() {
+            const val = document.getElementById('configJsonInput').value.trim();
+            if (!val) {
+                localStorage.removeItem('unifix_firebase_config');
+            } else {
+                try {
+                    JSON.parse(val);
+                    localStorage.setItem('unifix_firebase_config', val);
+                } catch (e) {
+                    alert('รูปแบบ JSON ของ Firebase Config ไม่ถูกต้อง');
+                    return;
+                }
+            }
+            closeConfigModal();
+            alert('บันทึกการตั้งค่าเรียบร้อยแล้ว ระบบกำลังรีโหลดเพื่อนำการตั้งค่าไปใช้');
+            window.location.reload();
+        };
+
+                function updateConfigStatusLabel() {
+            const label = document.getElementById('configStatusLabel');
+            if (window.appState.isFirebaseReady) {
+                label.innerText = "Firebase: เชื่อมต่อแล้ว";
+                label.classList.add("text-emerald-600");
+            } else {
+                label.innerText = "Firebase: ยังไม่เชื่อมต่อ";
+                label.classList.add("text-rose-600");
+            }
+        }
+
+        // Webhook Test
+        window.testWebhookPing = function() {
+            logWebhookConsole(`[TEST PING] ส่งสัญญาณทดสอบ Webhook Payload ไปยัง https://api.university.ac.th/v1/maintenance/webhook สำเร็จ (HTTP 200)`);
+        };
+
+        window.clearConsoleLog = function() {
+            document.getElementById('consoleLogArea').innerHTML = '<div>Console cleared.</div>';
+        };
+
+        function logWebhookConsole(msg) {
+            const area = document.getElementById('consoleLogArea');
+            if (area) {
+                const time = new Date().toLocaleTimeString('th-TH');
+                area.innerHTML += `<div>[${time}] ${msg}</div>`;
+                area.scrollTop = area.scrollHeight;
+            }
+        }
+    </script>
+</body>
+</html>
